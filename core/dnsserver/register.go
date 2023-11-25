@@ -1,7 +1,6 @@
 package dnsserver
 
 import (
-	"flag"
 	"fmt"
 	"net"
 	"time"
@@ -17,12 +16,7 @@ import (
 
 const serverType = "dns"
 
-// Any flags defined here, need to be namespaced to the serverType other
-// wise they potentially clash with other server types.
 func init() {
-	flag.StringVar(&Port, serverType+".port", DefaultPort, "Default port")
-	flag.StringVar(&Port, "p", DefaultPort, "Default port")
-
 	caddy.RegisterServerType(serverType, caddy.ServerType{
 		Directives: func() []string { return Directives },
 		DefaultInput: func() caddy.Input {
@@ -88,6 +82,8 @@ func (h *dnsContext) InspectServerBlocks(sourceFile string, serverBlocks []caddy
 					port = Port
 				case transport.TLS:
 					port = transport.TLSPort
+				case transport.QUIC:
+					port = transport.QUICPort
 				case transport.GRPC:
 					port = transport.GRPCPort
 				case transport.HTTPS:
@@ -138,13 +134,6 @@ func (h *dnsContext) InspectServerBlocks(sourceFile string, serverBlocks []caddy
 
 // MakeServers uses the newly-created siteConfigs to create and return a list of server instances.
 func (h *dnsContext) MakeServers() ([]caddy.Server, error) {
-	// Now that all Keys and Directives are parsed and initialized
-	// lets verify that there is no overlap on the zones and addresses to listen for
-	errValid := h.validateZonesAndListeningAddresses()
-	if errValid != nil {
-		return nil, errValid
-	}
-
 	// Copy the Plugin, ListenHosts and Debug from first config in the block
 	// to all other config in the same block . Doing this results in zones
 	// sharing the same plugin instances and settings as other zones in
@@ -154,7 +143,12 @@ func (h *dnsContext) MakeServers() ([]caddy.Server, error) {
 		c.ListenHosts = c.firstConfigInBlock.ListenHosts
 		c.Debug = c.firstConfigInBlock.Debug
 		c.Stacktrace = c.firstConfigInBlock.Stacktrace
-		c.TLSConfig = c.firstConfigInBlock.TLSConfig
+
+		// Fork TLSConfig for each encrypted connection
+		c.TLSConfig = c.firstConfigInBlock.TLSConfig.Clone()
+		c.ReadTimeout = c.firstConfigInBlock.ReadTimeout
+		c.WriteTimeout = c.firstConfigInBlock.WriteTimeout
+		c.IdleTimeout = c.firstConfigInBlock.IdleTimeout
 		c.TsigSecret = c.firstConfigInBlock.TsigSecret
 	}
 
@@ -182,6 +176,13 @@ func (h *dnsContext) MakeServers() ([]caddy.Server, error) {
 			}
 			servers = append(servers, s)
 
+		case transport.QUIC:
+			s, err := NewServerQUIC(addr, group)
+			if err != nil {
+				return nil, err
+			}
+			servers = append(servers, s)
+
 		case transport.GRPC:
 			s, err := NewServergRPC(addr, group)
 			if err != nil {
@@ -198,6 +199,27 @@ func (h *dnsContext) MakeServers() ([]caddy.Server, error) {
 		}
 	}
 
+	// For each server config, check for View Filter plugins
+	for _, c := range h.configs {
+		// Add filters in the plugin.cfg order for consistent filter func evaluation order.
+		for _, d := range Directives {
+			if vf, ok := c.registry[d].(Viewer); ok {
+				if c.ViewName != "" {
+					return nil, fmt.Errorf("multiple views defined in server block")
+				}
+				c.ViewName = vf.ViewName()
+				c.FilterFuncs = append(c.FilterFuncs, vf.Filter)
+			}
+		}
+	}
+
+	// Verify that there is no overlap on the zones and listen addresses
+	// for unfiltered server configs
+	errValid := h.validateZonesAndListeningAddresses()
+	if errValid != nil {
+		return nil, errValid
+	}
+
 	return servers, nil
 }
 
@@ -207,7 +229,8 @@ func (c *Config) AddPlugin(m plugin.Plugin) {
 }
 
 // registerHandler adds a handler to a site's handler registration. Handlers
-//  use this to announce that they exist to other plugin.
+//
+//	use this to announce that they exist to other plugin.
 func (c *Config) registerHandler(h plugin.Handler) {
 	if c.registry == nil {
 		c.registry = make(map[string]plugin.Handler)
@@ -253,7 +276,15 @@ func (h *dnsContext) validateZonesAndListeningAddresses() error {
 		for _, h := range conf.ListenHosts {
 			// Validate the overlapping of ZoneAddr
 			akey := zoneAddr{Transport: conf.Transport, Zone: conf.Zone, Address: h, Port: conf.Port}
-			existZone, overlapZone := checker.registerAndCheck(akey)
+			var existZone, overlapZone *zoneAddr
+			if len(conf.FilterFuncs) > 0 {
+				// This config has filters. Check for overlap with other (unfiltered) configs.
+				existZone, overlapZone = checker.check(akey)
+			} else {
+				// This config has no filters. Check for overlap with other (unfiltered) configs,
+				// and register the zone to prevent subsequent zones from overlapping with it.
+				existZone, overlapZone = checker.registerAndCheck(akey)
+			}
 			if existZone != nil {
 				return fmt.Errorf("cannot serve %s - it is already defined", akey.String())
 			}
@@ -265,7 +296,7 @@ func (h *dnsContext) validateZonesAndListeningAddresses() error {
 	return nil
 }
 
-// groupSiteConfigsByListenAddr groups site configs by their listen
+// groupConfigsByListenAddr groups site configs by their listen
 // (bind) address, so sites that use the same listener can be served
 // on the same server instance. The return value maps the listen
 // address (what you pass into net.Listen) to the list of site configs.
