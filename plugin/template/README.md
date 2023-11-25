@@ -17,6 +17,7 @@ template CLASS TYPE [ZONE...] {
     additional RR
     authority RR
     rcode CODE
+    ederror EXTENDED_ERROR_CODE [EXTRA_REASON]
     fallthrough [FALLTHROUGH-ZONE...]
 }
 ~~~
@@ -31,6 +32,8 @@ template CLASS TYPE [ZONE...] {
   in a response with an empty answer section.
 * `rcode` **CODE** A response code (`NXDOMAIN, SERVFAIL, ...`). The default is `NOERROR`. Valid response code values are
   per the `RcodeToString` map defined by the `miekg/dns` package in `msg.go`.
+* `ederror` **EXTENDED_ERROR_CODE** is an extended DNS error code as a number defined in `RFC8914` (0, 1, 2,..., 24).
+              **EXTRA_REASON** is an additional string explaining the reason for returning the error.
 * `fallthrough` Continue with the next _template_ instance if the _template_'s **ZONE** matches a query name but no regex match.
   If there is no next _template_, continue resolution with the next plugin. If **[FALLTHROUGH-ZONE...]** are listed (for example
   `in-addr.arpa` and `ip6.arpa`), then only queries for those zones will be subject to fallthrough. Without
@@ -54,6 +57,10 @@ Each resource record is a full-featured [Go template](https://golang.org/pkg/tex
 * `.Meta` a function that takes a metadata name and returns the value, if the
   metadata plugin is enabled. For example, `.Meta "kubernetes/client-namespace"`
 
+and the following predefined [template functions](https://golang.org/pkg/text/template#hdr-Functions)
+
+* `parseInt` interprets a string in the given base and bit size. Equivalent to [strconv.ParseUint](https://golang.org/pkg/strconv#ParseUint).
+
 The output of the template must be a [RFC 1035](https://tools.ietf.org/html/rfc1035) style resource record (commonly referred to as a "zone file").
 
 **WARNING** there is a syntactical problem with Go templates and CoreDNS config files. Expressions
@@ -64,9 +71,9 @@ The output of the template must be a [RFC 1035](https://tools.ietf.org/html/rfc1
 
 If monitoring is enabled (via the *prometheus* plugin) then the following metrics are exported:
 
-* `coredns_template_matches_total{server, regex}` the total number of matched requests by regex.
-* `coredns_template_template_failures_total{server, regex,section,template}` the number of times the Go templating failed. Regex, section and template label values can be used to map the error back to the config file.
-* `coredns_template_rr_failures_total{server, regex,section,template}` the number of times the templated resource record was invalid and could not be parsed. Regex, section and template label values can be used to map the error back to the config file.
+* `coredns_template_matches_total{server, zone, view, class, type}` the total number of matched requests by regex.
+* `coredns_template_template_failures_total{server, zone, view, class, type, section, template}` the number of times the Go templating failed. Regex, section and template label values can be used to map the error back to the config file.
+* `coredns_template_rr_failures_total{server, zone, view, class, type, section, template}` the number of times the templated resource record was invalid and could not be parsed. Regex, section and template label values can be used to map the error back to the config file.
 
 Both failure cases indicate a problem with the template configuration. The `server` label indicates
 the server incrementing the metric, see the *metrics* plugin for details.
@@ -100,6 +107,7 @@ The `.invalid` domain is a reserved TLD (see [RFC 2606 Reserved Top Level DNS Na
     template ANY ANY invalid {
       rcode NXDOMAIN
       authority "invalid. 60 {{ .Class }} SOA ns.invalid. hostmaster.invalid. (1 60 60 60 60)"
+      ederror 21 "Blocked according to RFC2606"
     }
 }
 ~~~
@@ -177,6 +185,23 @@ Having templates to map certain PTR/A pairs is a common pattern.
 
 Fallthrough is needed for mixed domains where only some responses are templated.
 
+### Resolve hexadecimal ip pattern using parseInt
+
+~~~ corefile
+. {
+    forward . 8.8.8.8
+
+    template IN A example {
+      match "^ip0a(?P<b>[a-f0-9]{2})(?P<c>[a-f0-9]{2})(?P<d>[a-f0-9]{2})[.]example[.]$"
+      answer "{{ .Name }} 60 IN A 10.{{ parseInt .Group.b 16 8 }}.{{ parseInt .Group.c 16 8 }}.{{ parseInt .Group.d 16 8 }}"
+      fallthrough
+    }
+}
+~~~
+
+An IPv4 address can be expressed in a more compact form using its hexadecimal encoding.
+For example `ip-10-123-123.example.` can instead be expressed as `ip0a7b7b7b.example.`
+
 ### Resolve multiple ip patterns
 
 ~~~ corefile
@@ -239,6 +264,22 @@ Named capture groups can be used to template one response for multiple patterns.
       additional "ns1.example. 60 IN A 198.51.100.8"
       fallthrough
     }
+}
+~~~
+
+### Fabricate a CNAME
+
+This example responds with a CNAME to `google.com` for any DNS query made exactly for `foogle.com`.
+The answer will also contain a record for `google.com` if the upstream nameserver can return a record for it of the
+requested type.
+
+~~~ corefile
+. {
+  template IN ANY foogle.com {
+    match "^foogle\.com\.$"
+    answer "foogle.com 60 IN CNAME google.com"
+  }
+  forward . 8.8.8.8
 }
 ~~~
 

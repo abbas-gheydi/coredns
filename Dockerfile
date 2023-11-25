@@ -1,5 +1,5 @@
 #build stage
-FROM golang:1.17 AS builder
+FROM golang:1.20 AS builder
 RUN mkdir -p /go/src/app
 COPY go.sum go.mod /go/src/app/
 WORKDIR /go/src/app
@@ -18,5 +18,9 @@ COPY --from=slim /etc/ssl/certs /etc/ssl/certs
 WORKDIR /
 COPY --from=builder /go/src/app/coredns /coredns
 
+FROM --platform=$TARGETPLATFORM ${BASE}
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=build /coredns /coredns
+USER nonroot:nonroot
 EXPOSE 53 53/udp
 ENTRYPOINT ["/coredns"]
