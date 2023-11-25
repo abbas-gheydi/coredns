@@ -9,6 +9,8 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/coredns/coredns)](https://goreportcard.com/report/coredns/coredns)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1250/badge)](https://bestpractices.coreinfrastructure.org/projects/1250)
 
+(This fork adds a couple of custom plugins to coredns)
+
 CoreDNS is a DNS server/forwarder, written in Go, that chains [plugins](https://coredns.io/plugins).
 Each plugin performs a (DNS) function.
 This version has two plugin more than default named aaaa and retry.
