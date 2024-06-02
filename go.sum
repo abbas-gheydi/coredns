@@ -252,6 +252,12 @@ github.com/rogpeppe/go-internal v1.10.0/go.mod h1:UQnix2H7Ngw/k4C5ijL5+65zddjncj
 github.com/secure-systems-lab/go-securesystemslib v0.7.0 h1:OwvJ5jQf9LnIAS83waAjPbcMsODrTQUpJ02eNLUoxBg=
 github.com/secure-systems-lab/go-securesystemslib v0.7.0/go.mod h1:/2gYnlnHVQ6xeGtfIqFy7Do03K4cdCY0A/GlJLDKLHI=
 github.com/sirupsen/logrus v1.7.0/go.mod h1:yWOB1SBYBC5VeMP7gHvWumXLIWorT60ONWic61uBYv0=
+github.com/snapp-incubator/coredns-plugins/aaaa v0.2.0 h1:XUiXfEeZQR6ymtpsSzp2SP73Lq4czvuB3zmkZylinLg=
+github.com/snapp-incubator/coredns-plugins/aaaa v0.2.0/go.mod h1:6M3iEjPhu9LUQRt7xlvw367HcRf/7VmqSytRxtduKbs=
+github.com/snapp-incubator/coredns-plugins/etcdnx v0.0.0-20231126004731-62f7cab30807 h1:DfKxCLgGF+r7k/uoEftOthfcHrOOUekyeaH94Lw05Ac=
+github.com/snapp-incubator/coredns-plugins/etcdnx v0.0.0-20231126004731-62f7cab30807/go.mod h1:mXD+9Gvz4jOJB9gh/VLFxtqIALEI6zflKGByqYx27tc=
+github.com/snapp-incubator/coredns-plugins/https v0.0.0-20231126004731-62f7cab30807 h1:5uv8oDSUmYfsMJiBC461ZCthdScEWRKS7M1IaaXMd1g=
+github.com/snapp-incubator/coredns-plugins/https v0.0.0-20231126004731-62f7cab30807/go.mod h1:GNsbqlYHTcpsxX1pYu4p13OXvmxiBtX3Nf5ADn+5HLA=
 github.com/spaolacci/murmur3 v1.1.0 h1:7c1g84S4BPRrfL5Xrdp6fOJ206sU9y293DDHaoy0bLI=
 github.com/spaolacci/murmur3 v1.1.0/go.mod h1:JwIasOWyU6f++ZhiEuf87xNszmSA2myDM2Kzu9HwQUA=
 github.com/spf13/pflag v1.0.5 h1:iy+VFUOCP1a+8yFto/drg2CJ5u0yRoB7fZw3DKv/JXA=

@@ -56,4 +56,8 @@ import (
 	_ "github.com/coredns/coredns/plugin/tsig"
 	_ "github.com/coredns/coredns/plugin/view"
 	_ "github.com/coredns/coredns/plugin/whoami"
+
+	_ "github.com/snapp-incubator/coredns-plugins/aaaa"
+	_ "github.com/snapp-incubator/coredns-plugins/etcdnx"
+	_ "github.com/snapp-incubator/coredns-plugins/https"
 )
