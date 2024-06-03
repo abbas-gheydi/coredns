@@ -1,6 +1,8 @@
 module github.com/coredns/coredns
 
-go 1.21
+go 1.21.1
+
+toolchain go1.21.8
 
 require (
 	github.com/Azure/azure-sdk-for-go v68.0.0+incompatible
@@ -25,6 +27,10 @@ require (
 	github.com/prometheus/client_model v0.6.1
 	github.com/prometheus/common v0.53.0
 	github.com/quic-go/quic-go v0.42.0
+	github.com/snapp-incubator/coredns-plugins/aaaa v0.2.0
+	github.com/snapp-incubator/coredns-plugins/etcdnx v0.0.0-20231126004731-62f7cab30807
+	github.com/snapp-incubator/coredns-plugins/https v0.0.0-20231126004731-62f7cab30807
+	github.com/snapp-incubator/coredns-plugins/retry v0.0.0-20231126004731-62f7cab30807
 	go.etcd.io/etcd/api/v3 v3.5.13
 	go.etcd.io/etcd/client/v3 v3.5.13
 	golang.org/x/crypto v0.22.0
@@ -106,6 +112,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.7.0 // indirect
+	github.com/snapp-incubator/fanout v0.0.0-20220112171803-c70b2db3696d // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tinylib/msgp v1.1.8 // indirect
 	go.etcd.io/etcd/client/pkg/v3 v3.5.13 // indirect
